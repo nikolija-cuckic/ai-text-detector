@@ -20,8 +20,10 @@ MODEL_MAP = {
     "lstm_maxlen256": (LSTMClassifier, LSTMConfig),
     "transformer_maxlen128": (TransformerClassifier, TransformerConfig),
     "transformer_maxlen256": (TransformerClassifier, TransformerConfig),
-    "bert_maxlen128": (BERTClassifier, BERTConfig),
-    "bert_maxlen256": (BERTClassifier, BERTConfig),
+    "bert_frozen_maxlen128": (BERTClassifier, BERTConfig),
+    "bert_frozen_maxlen256": (BERTClassifier, BERTConfig),
+    "bert_full_maxlen128": (BERTClassifier, BERTConfig),
+    "bert_full_maxlen256": (BERTClassifier, BERTConfig),
 }
 
 
