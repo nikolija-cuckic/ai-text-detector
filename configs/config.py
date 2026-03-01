@@ -32,7 +32,7 @@ class TransformerConfig:
     # training
     lr: float = 1e-3
     weight_decay: float = 0.01
-    max_epochs: int = 2
+    max_epochs: int = 20
     patience: int = 3           # early stopping patience
     seed: int = 9
 

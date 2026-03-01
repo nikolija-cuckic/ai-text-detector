@@ -189,7 +189,7 @@ class Trainer:
 
         start_epoch = self.resume_from_checkpoint()  # auto-resume if last.pt exists    
 
-        history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []}
+        history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": [], "lr": []}
 
         for epoch in range(start_epoch, self.config.max_epochs + 1):
             t0 = time.time()
@@ -204,7 +204,8 @@ class Trainer:
             history["val_loss"].append(val_loss)
             history["train_acc"].append(train_acc)
             history["val_acc"].append(val_acc)
-
+            current_lr = self.optimizer.param_groups[0]["lr"]
+            history["lr"].append(current_lr)
             print(
                 f"Epoch {epoch:02d}/{self.config.max_epochs} "
                 f"| train_loss {train_loss:.4f} acc {train_acc:.4f} "
