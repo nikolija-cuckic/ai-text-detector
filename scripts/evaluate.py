@@ -16,9 +16,12 @@ RESULTS_DIR = "results"
 CKPT_DIR = "checkpoints"
 
 MODEL_MAP = {
-    "lstm": (LSTMClassifier, LSTMConfig),
-    "transformer": (TransformerClassifier, TransformerConfig),
-    "bert": (BERTClassifier, BERTConfig),
+    "lstm_maxlen128": (LSTMClassifier, LSTMConfig),
+    "lstm_maxlen256": (LSTMClassifier, LSTMConfig),
+    "transformer_maxlen128": (TransformerClassifier, TransformerConfig),
+    "transformer_maxlen256": (TransformerClassifier, TransformerConfig),
+    "bert_maxlen128": (BERTClassifier, BERTConfig),
+    "bert_maxlen256": (BERTClassifier, BERTConfig),
 }
 
 

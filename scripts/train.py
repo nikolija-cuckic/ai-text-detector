@@ -31,46 +31,46 @@ def save_history(history: dict, model_name: str) -> None:
 
 def train_lstm(data_cfg, lstm_cfg, train_loader, val_loader) -> dict:
     model = LSTMClassifier(config=lstm_cfg)  # samo config, bez kwargs
-
+    model_name = f"lstm_maxlen{data_cfg.max_len}"
     trainer = Trainer(
         model=model,
         config=lstm_cfg,
         train_loader=train_loader,
         val_loader=val_loader,
-        model_name="lstm",
+        model_name=model_name,
     )
     history = trainer.train()
-    save_history(history, "lstm")
+    save_history(history, model_name)
     return history
 
 
 def train_transformer(data_cfg, trans_cfg, train_loader, val_loader) -> dict:
     model = TransformerClassifier(config=trans_cfg)  # samo config
-
+    model_name = f"transformer_maxlen{data_cfg.max_len}"
     trainer = Trainer(
         model=model,
         config=trans_cfg,
         train_loader=train_loader,
         val_loader=val_loader,
-        model_name="transformer",
+        model_name=model_name,
     )
     history = trainer.train()
-    save_history(history, "transformer")
+    save_history(history, model_name)
     return history
 
 
 def train_bert(data_cfg, bert_cfg, train_loader, val_loader) -> dict:
     model = BERTClassifier(config=bert_cfg)  # samo config
-
+    model_name = f"bert_maxlen{data_cfg.max_len}"
     trainer = Trainer(
         model=model,
         config=bert_cfg,
         train_loader=train_loader,
         val_loader=val_loader,
-        model_name="bert",
+        model_name=model_name,
     )
     history = trainer.train()
-    save_history(history, "bert")
+    save_history(history, model_name)
     return history
 
 
