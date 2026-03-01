@@ -1,0 +1,41 @@
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# data — dataset je prevelik za git
+data/hc3_all.jsonl
+
+# model checkpoints
+checkpoints/
+*.pt
+*.pth
+*.safetensors
+
+# huggingface cache
+.cache/
+
+# logs i rezultati
+runs/
+logs/
+*.log
+
+# jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ide
+.vscode/
+.idea/
+
+# os
+.DS_Store
+Thumbs.db
+
+# env varijable
+.env
+
+README.md
