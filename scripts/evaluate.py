@@ -85,39 +85,62 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--models",
         nargs="+",
-        choices=["lstm", "transformer", "bert"],
+        choices=list(MODEL_MAP.keys()),
         default=None,
         help="Which models to evaluate. Defaults to all with existing checkpoints.",
     )
+    parser.add_argument(
+        "--max_len",
+        type=int,
+        default=None,
+        choices=[128, 256],
+        help="Which test loader to use. If omitted, inferred from model name.",
+    )    
     return parser.parse_args()
 
+def get_max_len_from_name(model_name: str) -> int:
+    """Extracts max_len from model name, e.g. transformer_maxlen128 -> 128."""
+    if "maxlen128" in model_name:
+        return 128
+    if "maxlen256" in model_name:
+        return 256
+    return 256  # default
 
 def main() -> None:
     args = parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # load saved test loader
-    test_loader_path = os.path.join(RESULTS_DIR, "test_loader.pt")
-    if not os.path.exists(test_loader_path):
-        raise FileNotFoundError(f"{test_loader_path} not found. Run train.py first.")
-
-    print(f"Loading test loader from {test_loader_path}...")
-    test_loader = torch.load(test_loader_path, map_location=device, weights_only = False)
-
-    # decide which models to evaluate
+    # auto-detect which models to evaluate
     if args.models is not None:
         models_to_eval = args.models
     else:
-        # auto-detect: evaluate all models that have a checkpoint
         models_to_eval = [
-            name for name in ["lstm", "transformer", "bert"]
+            name for name in MODEL_MAP.keys()
             if os.path.exists(os.path.join(CKPT_DIR, name, "best.pt"))
         ]
         print(f"Auto-detected checkpoints: {models_to_eval}")
 
+    # cache loaded test loaders to avoid loading the same file twice
+    loader_cache = {}
     all_metrics = {}
 
     for model_name in models_to_eval:
+        # figure out which test loader to use
+        max_len = args.max_len if args.max_len is not None else get_max_len_from_name(model_name)
+        test_loader_path = os.path.join(RESULTS_DIR, f"test_loader_{max_len}.pt")
+
+        if not os.path.exists(test_loader_path):
+            print(f"  Skipping {model_name}: {test_loader_path} not found.")
+            continue
+
+        if test_loader_path not in loader_cache:
+            print(f"Loading test loader from {test_loader_path}...")
+            loader_cache[test_loader_path] = torch.load(
+                test_loader_path, map_location=device, weights_only=False
+            )
+
+        test_loader = loader_cache[test_loader_path]
+
         print(f"\nEvaluating {model_name}...")
         try:
             model = load_model(model_name, device)
@@ -127,7 +150,6 @@ def main() -> None:
         except FileNotFoundError as e:
             print(f"  Skipping {model_name}: {e}")
 
-    # save combined summary
     summary_path = os.path.join(RESULTS_DIR, "summary.json")
     with open(summary_path, "w") as f:
         json.dump(all_metrics, f, indent=2)
