@@ -6,7 +6,7 @@ import json
 import os
 import torch
 
-from config.config import LSTMConfig, TransformerConfig, BERTConfig
+from configs.config import LSTMConfig, TransformerConfig, BERTConfig
 from models.lstm_baseline import LSTMClassifier
 from models.classifier import TransformerClassifier
 from models.bert_classifier import BERTClassifier
@@ -28,7 +28,7 @@ def load_model(model_name: str, device: str) -> torch.nn.Module:
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"No checkpoint found at {ckpt_path}. Train the model first.")
 
-    ckpt = torch.load(ckpt_path, map_location=device)
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
     config = ckpt["config"]
 
     model_cls, _ = MODEL_MAP[model_name]
@@ -43,8 +43,8 @@ def load_model(model_name: str, device: str) -> torch.nn.Module:
 
 def evaluate_model(model_name: str, model, test_loader, device: str) -> dict:
     """Runs Evaluator and saves metrics to results/{model_name}_metrics.json."""
-    evaluator = Evaluator(model, test_loader, device)
-    metrics = evaluator.evaluate()
+    evaluator = Evaluator(model, device)
+    metrics = evaluator.evaluate(test_loader)
 
     # confusion matrix is a tensor/list — convert to list for JSON
     cm = metrics["confusion_matrix"]
@@ -99,7 +99,7 @@ def main() -> None:
         raise FileNotFoundError(f"{test_loader_path} not found. Run train.py first.")
 
     print(f"Loading test loader from {test_loader_path}...")
-    test_loader = torch.load(test_loader_path, map_location=device)
+    test_loader = torch.load(test_loader_path, map_location=device, weights_only = False)
 
     # decide which models to evaluate
     if args.models is not None:

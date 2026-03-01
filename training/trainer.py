@@ -123,22 +123,50 @@ class Trainer:
         return avg_loss, accuracy
 
     def save_checkpoint(self, epoch: int, val_loss: float) -> None:
-        """Saves model weights, optimizer state and training metadata."""
         ckpt = {
             "epoch": epoch,
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
+            "scheduler_state": self.scheduler.state_dict(),
             "val_loss": val_loss,
+            "best_val_loss": self.best_val_loss,
+            "epochs_without_improvement": self.epochs_without_improvement,
             "config": self.config
         }
-        path = os.path.join(self.ckpt_dir, "best.pt")
-        torch.save(ckpt, path)
-        print(f"  Checkpoint saved -> {path}")
+        path_best = os.path.join(self.ckpt_dir, "best.pt")
+        torch.save(ckpt, path_best)
+        print(f"  Checkpoint saved -> {path_best}")
+
+        path_last = os.path.join(self.ckpt_dir, "last.pt")
+        torch.save(ckpt, path_last)
+
+
+
+    def resume_from_checkpoint(self) -> int:
+        """
+        Loads last.pt if it exists and returns the next epoch to start from.
+        Returns 1 if no checkpoint found (fresh start).
+        """
+        path_last = os.path.join(self.ckpt_dir, "last.pt")
+        if not os.path.exists(path_last):
+            return 1
+
+        ckpt = torch.load(path_last, map_location=self.device, weights_only=False)
+        self.model.load_state_dict(ckpt["model_state"])
+        self.optimizer.load_state_dict(ckpt["optimizer_state"])
+        self.scheduler.load_state_dict(ckpt["scheduler_state"])
+        self.best_val_loss = ckpt["best_val_loss"]
+        self.epochs_without_improvement = ckpt["epochs_without_improvement"]
+        start_epoch = ckpt["epoch"] + 1
+
+        print(f"  Resumed from epoch {ckpt['epoch']} (val_loss={ckpt['val_loss']:.4f}, no_improve={self.epochs_without_improvement})")
+        return start_epoch
+
 
     def load_best_checkpoint(self) -> None:
         """Loads the best saved checkpoint back into the model."""
         path = os.path.join(self.ckpt_dir, "best.pt")
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(ckpt["model_state"])
         print(f"Best checkpoint loaded from epoch {ckpt['epoch']} (val_loss={ckpt['val_loss']:.4f})")
 
@@ -159,9 +187,11 @@ class Trainer:
         print(f"  LR        : {self.config.lr}")
         print(f"  Params    : {self.model.count_parameters():,}\n")
 
+        start_epoch = self.resume_from_checkpoint()  # auto-resume if last.pt exists    
+
         history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []}
 
-        for epoch in range(1, self.config.max_epochs + 1):
+        for epoch in range(start_epoch, self.config.max_epochs + 1):
             t0 = time.time()
 
             train_loss, train_acc = self._train_epoch()
