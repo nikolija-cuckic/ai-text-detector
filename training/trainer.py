@@ -57,7 +57,7 @@ class Trainer:
 
         # gradient clipping — prevents exploding gradients, especially in LSTM
         self.grad_clip = 1.0
-
+        self.best_val_loss = float("inf")
         # early stopping state
         self.best_val_acc = 0.0
         self.epochs_without_improvement = 0
