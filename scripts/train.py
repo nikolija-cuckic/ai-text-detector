@@ -59,9 +59,12 @@ def train_transformer(data_cfg, trans_cfg, train_loader, val_loader) -> dict:
     return history
 
 
-def train_bert(data_cfg, bert_cfg, train_loader, val_loader) -> dict:
-    model = BERTClassifier(config=bert_cfg)  # samo config
-    model_name = f"bert_maxlen{data_cfg.max_len}"
+def train_bert(data_cfg, bert_cfg, train_loader, val_loader, frozen: bool = False) -> dict:
+    model = BERTClassifier(config=bert_cfg)
+    if frozen:
+        model.freeze_bert()
+    suffix = "frozen" if frozen else "full"
+    model_name = f"bert_{suffix}_maxlen{data_cfg.max_len}"
     trainer = Trainer(
         model=model,
         config=bert_cfg,
@@ -72,6 +75,7 @@ def train_bert(data_cfg, bert_cfg, train_loader, val_loader) -> dict:
     history = trainer.train()
     save_history(history, model_name)
     return history
+
 
 
 def parse_args() -> argparse.Namespace:
@@ -163,7 +167,8 @@ def main() -> None:
         train_transformer(data_cfg, trans_cfg, train_loader, val_loader)
 
     if "bert" in models_to_train:
-        train_bert(data_cfg, bert_cfg, train_loader, val_loader)
+        train_bert(data_cfg, bert_cfg, train_loader, val_loader, frozen=True)
+        train_bert(data_cfg, bert_cfg, train_loader, val_loader, frozen=False)
 
     print("\nAll done. Run evaluate.py to see test results.")
 

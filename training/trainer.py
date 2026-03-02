@@ -7,6 +7,7 @@ import sys
 sys.path.append(".")
 
 import os
+import json
 import time
 import torch
 import torch.nn as nn
@@ -58,7 +59,7 @@ class Trainer:
         self.grad_clip = 1.0
 
         # early stopping state
-        self.best_val_loss = float("inf")
+        self.best_val_acc = 0.0
         self.epochs_without_improvement = 0
 
         # checkpoint folder
@@ -130,6 +131,7 @@ class Trainer:
             "scheduler_state": self.scheduler.state_dict(),
             "val_loss": val_loss,
             "best_val_loss": self.best_val_loss,
+            "best_val_acc": self.best_val_acc,
             "epochs_without_improvement": self.epochs_without_improvement,
             "config": self.config
         }
@@ -156,6 +158,7 @@ class Trainer:
         self.optimizer.load_state_dict(ckpt["optimizer_state"])
         self.scheduler.load_state_dict(ckpt["scheduler_state"])
         self.best_val_loss = ckpt["best_val_loss"]
+        self.best_val_acc = ckpt.get("best_val_acc", 0.0)
         self.epochs_without_improvement = ckpt["epochs_without_improvement"]
         start_epoch = ckpt["epoch"] + 1
 
@@ -168,7 +171,7 @@ class Trainer:
         path = os.path.join(self.ckpt_dir, "best.pt")
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(ckpt["model_state"])
-        print(f"Best checkpoint loaded from epoch {ckpt['epoch']} (val_loss={ckpt['val_loss']:.4f})")
+        print(f"Best checkpoint loaded from epoch {ckpt['epoch']} (val_acc={ckpt.get('best_val_acc', '?'):.4f})")
 
     def train(self) -> dict:
         """
@@ -215,8 +218,8 @@ class Trainer:
             )
 
             # check for improvement
-            if val_loss < self.best_val_loss:
-                self.best_val_loss = val_loss
+            if val_acc > self.best_val_acc:
+                self.best_val_acc = val_acc
                 self.epochs_without_improvement = 0
                 self.save_checkpoint(epoch, val_loss)
             else:
@@ -226,6 +229,12 @@ class Trainer:
                 if self.epochs_without_improvement >= self.config.patience:
                     print(f"Early stopping at epoch {epoch}.")
                     break
+        
+
+        results_dir = os.path.join("results")
+        os.makedirs(results_dir, exist_ok=True)
+        with open(os.path.join(results_dir, f"{self.model_name}_history.json"), "w") as f:
+            json.dump(history, f)
 
         self.load_best_checkpoint()
         return history
