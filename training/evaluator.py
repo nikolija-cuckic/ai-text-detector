@@ -1,8 +1,3 @@
-"""
-Evaluation utils for binary text classification models.
-Computes accuracy, F1, precision, recall, ROC-AUC and confusion matrix.
-"""
-
 import sys
 sys.path.append(".")
 
@@ -22,11 +17,8 @@ from typing import Any
 
 
 class Evaluator:
-    """
-    Evaluates a binary classifier on a given DataLoader.
-    Works with all three models (LSTM, TransformerClassifier, BERTClassifier)
-    because they all return (logits, _) with the same input interface.
-    """
+    """Works with all three models (LSTM, TransformerClassifier, BERTClassifier)
+    because they all return (logits, _)"""
 
     def __init__(self, model: nn.Module, device: str) -> None:
         self.model = model
@@ -36,10 +28,9 @@ class Evaluator:
     def predict(self, loader: DataLoader) -> tuple:
         """
         Runs inference on the full loader and returns predictions and true labels.
-
         Returns:
             preds:  list of predicted class indices (0=human, 1=AI)
-            probs:  list of predicted probabilities for class 1 (AI) — for ROC-AUC
+            probs:  list of predicted probabilities for class 1 (AI) for ROC-AUC
             labels: list of true class indices
         """
         self.model.eval()
@@ -54,8 +45,8 @@ class Evaluator:
 
             logits, _ = self.model(input_ids, attention_mask)  # [B, 2]
 
-            probs = torch.softmax(logits, dim=-1)[:, 1]        # P(AI) — [B]
-            preds = logits.argmax(dim=-1)                      # [B]
+            probs = torch.softmax(logits, dim=-1)[:, 1] # P(AI) - [B]
+            preds = logits.argmax(dim=-1) # [B]
 
             all_preds.extend(preds.cpu().tolist())
             all_probs.extend(probs.cpu().tolist())
@@ -65,26 +56,21 @@ class Evaluator:
 
     def evaluate(self, loader: DataLoader, split_name: str = "test") -> dict:
         """
-        Computes all classification metrics on the given loader.
-
         Args:
-            loader:     DataLoader to evaluate on
+            loader: DataLoader to evaluate on
             split_name: label for printing ("val" or "test")
-
         Returns:
             dict with accuracy, f1, precision, recall, roc_auc, confusion_matrix
         """
         preds, probs, labels = self.predict(loader)
-
         metrics = {
-            "accuracy":         accuracy_score(labels, preds),
-            "f1":               f1_score(labels, preds, average="binary"),
-            "precision":        precision_score(labels, preds, average="binary"),
-            "recall":           recall_score(labels, preds, average="binary"),
-            "roc_auc":          roc_auc_score(labels, probs),
+            "accuracy": accuracy_score(labels, preds),
+            "f1": f1_score(labels, preds, average="binary"),
+            "precision": precision_score(labels, preds, average="binary"),
+            "recall": recall_score(labels, preds, average="binary"),
+            "roc_auc": roc_auc_score(labels, probs),
             "confusion_matrix": confusion_matrix(labels, preds)
         }
-
         self._print_report(metrics, labels, preds, split_name)
         return metrics
 
@@ -102,42 +88,3 @@ class Evaluator:
         print(f"  AI     [ {cm[1][0]:5d}  {cm[1][1]:5d} ]")
         print(f"\nClassification report:")
         print(classification_report(labels, preds, target_names=["human", "AI"]))
-
-
-# quick sanity check
-
-if __name__ == "__main__":
-    from dataclasses import dataclass
-    from models.classifier import TransformerClassifier
-
-    @dataclass
-    class Config:
-        vocab_size: int = 30522
-        d_model: int = 128
-        n_heads: int = 8
-        n_layers: int = 4
-        max_len: int = 256
-        dropout: float = 0.1
-        bias: bool = False
-        num_classes: int = 2
-
-    torch.manual_seed(9)
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    config = Config()
-    model = TransformerClassifier(config).to(device)
-
-    # fake batch to simulate a loader
-    def fake_loader():
-        for _ in range(3):
-            B, T = 8, 32
-            yield {
-                "input_ids": torch.randint(1, config.vocab_size, (B, T)),
-                "attention_mask": torch.ones(B, T, dtype=torch.long),
-                "labels": torch.randint(0, 2, (B,))
-            }
-
-    evaluator = Evaluator(model, device)
-    metrics = evaluator.evaluate(fake_loader(), split_name="test")
-    print(f"\nReturned keys: {list(metrics.keys())}")
-    print("OK")

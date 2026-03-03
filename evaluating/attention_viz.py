@@ -17,10 +17,9 @@ TOKENIZER_NAME = "bert-base-uncased"
 def get_attention_weights(model, batch: dict, device: str, model_name: str) -> list:
     """
     Runs one forward pass and returns attention weights.
-
     TransformerClassifier returns list of [B, n_heads, seq_len, seq_len].
     BERTClassifier returns tuple of [B, n_heads, seq_len, seq_len].
-    LSTMClassifier returns None — not supported.
+    LSTMClassifier returns None.
     """
     model.eval()
     with torch.no_grad():
@@ -29,18 +28,13 @@ def get_attention_weights(model, batch: dict, device: str, model_name: str) -> l
         _, attentions = model(input_ids, attention_mask)
 
     if attentions is None:
-        raise ValueError(f"{model_name} does not produce attention weights (LSTM).")
+        raise ValueError(f"{model_name} doesn't have attention weights (LSTM).")
 
     # normalize to list of tensors on cpu
     return [a.cpu() for a in attentions]
 
 
-def plot_attention_head(
-    attn_matrix: np.ndarray,
-    tokens: list,
-    title: str,
-    save_path: str
-) -> None:
+def plot_attention_head(attn_matrix: np.ndarray, tokens: list, title: str, save_path: str) -> None:
     """
     Plots a single attention head as a heatmap.
 
@@ -66,17 +60,10 @@ def plot_attention_head(
     plt.close()
 
 
-def plot_mean_attention(
-    attentions: list,
-    tokens: list,
-    model_name: str,
-    sample_idx: int,
-    label: int
-) -> None:
+def plot_mean_attention(attentions: list, tokens: list, model_name: str, sample_idx: int, label: int) -> None:
     """
     For each layer, plots the mean attention across all heads for one sample.
     Saves one image per layer.
-
     attentions: list of [B, n_heads, seq_len, seq_len] tensors
     """
     label_str = "human" if label == 0 else "AI"
@@ -96,18 +83,9 @@ def plot_mean_attention(
         print(f"  Saved {save_path}")
 
 
-def plot_all_heads(
-    attentions: list,
-    tokens: list,
-    model_name: str,
-    sample_idx: int,
-    label: int,
-    layer_idx: int = 0
-) -> None:
+def plot_all_heads(attentions: list, tokens: list, model_name: str, sample_idx: int, label: int, layer_idx: int = 0) -> None:
     """
     Plots all attention heads from one layer in a grid.
-    Useful for inspecting what different heads focus on.
-
     attentions: list of [B, n_heads, seq_len, seq_len]
     layer_idx: which layer to visualize
     """
@@ -144,20 +122,19 @@ def plot_all_heads(
     save_path = os.path.join(RESULTS_DIR, fname)
     plt.savefig(save_path, dpi=120)
     plt.close()
-    print(f"  Saved {save_path}")
+    print(f"Saved {save_path}")
 
 
 def visualize(model, test_loader, device: str, model_name: str, n_samples: int = 2) -> None:
     """
-    Main entry point — picks n_samples from test set (one human, one AI if possible)
-    and generates attention plots.
+    Picks n_samples from test set (one human, one AI if possible) and generates attention plots.
 
     Args:
-        model: trained TransformerClassifier or BERTClassifier
-        test_loader: DataLoader for test set
-        device: "cpu" or "cuda"
-        model_name: "transformer" or "bert"
-        n_samples: how many samples to visualize
+    model: trained TransformerClassifier or BERTClassifier
+    test_loader: DataLoader for test set
+    device: "cpu" or "cuda"
+    model_name: "transformer" or "bert"
+    n_samples: how many samples to visualize
     """
     tokenizer = BertTokenizer.from_pretrained(TOKENIZER_NAME)
 
@@ -193,7 +170,7 @@ def visualize(model, test_loader, device: str, model_name: str, n_samples: int =
         real_len = sum(mask)
         tokens = tokenizer.convert_ids_to_tokens(ids[:real_len])
 
-        # cap at 40 tokens for readability
+        # cap at 40 tokens
         tokens = tokens[:40]
 
         print(f"\nSample {sample_idx} | label={'human' if label == 0 else 'AI'} | {len(tokens)} tokens")

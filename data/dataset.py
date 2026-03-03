@@ -16,7 +16,7 @@ from transformers import BertTokenizer
 
 # constants
 
-MAX_LEN = 256  # max token sequence length (use 512 for final training!!!)
+MAX_LEN = 256  # max token sequence length 
 TOKENIZER_NAME = "bert-base-uncased"
 DATA_PATH = "data/hc3_all.jsonl"
 
@@ -34,16 +34,14 @@ def load_hc3(path: str = DATA_PATH, test_split: float = 0.1, seed: int = 9) -> t
           "chatgpt_answers": [str, ...]   -> label 1
         }
 
-    Splits rows (not samples) into train/test before flattening answers,
-    so there is no question-level leakage between splits.
-
+    Splits rows (not samples) into train/test 
     Args:
         path:       path to hc3_all.jsonl
         test_split: fraction of rows reserved for test
         seed:       random seed for reproducible split
 
     Returns:
-        (train_samples, test_samples) — each a list of {"text": str, "label": int}
+        (train_samples, test_samples) each a list of {"text": str, "label": int}
     """
     with open(path, "r", encoding="utf-8") as f:
         rows = [json.loads(line) for line in f if line.strip()]
@@ -60,7 +58,7 @@ def load_hc3(path: str = DATA_PATH, test_split: float = 0.1, seed: int = 9) -> t
 
 
 def _rows_to_samples(rows: list) -> list:
-    """Flattens a list of HC3 rows into individual {text, label} samples."""
+    """Flattens a list of HC3 rows into {text, label} samples."""
     samples = []
     for row in rows:
         for answer in row.get("human_answers", []):
@@ -75,7 +73,7 @@ def _rows_to_samples(rows: list) -> list:
 
 
 def _clean(text: str) -> str:
-    """Strips whitespace and collapses multiple spaces."""
+    """Removes whitespace and multiple spaces."""
     if not isinstance(text, str):
         return ""
     return re.sub(r"\s+", " ", text.strip())
@@ -115,12 +113,12 @@ class HC3Dataset(Dataset):
             max_length=self.max_len,
             padding="max_length",  # pad short sequences to max_len with [PAD]
             truncation=True,       # cut sequences longer than max_len
-            return_tensors="pt"    # return PyTorch tensors
+            return_tensors="pt"    
         )
 
         return {
-            "input_ids": enc["input_ids"].squeeze(0),       # [max_len]
-            "attention_mask": enc["attention_mask"].squeeze(0),  # [max_len]
+            "input_ids": enc["input_ids"].squeeze(0), # [max_len]
+            "attention_mask": enc["attention_mask"].squeeze(0), # [max_len]
             "label": torch.tensor(label, dtype=torch.long)
         }
 
@@ -130,7 +128,6 @@ class HC3Dataset(Dataset):
 def collate_fn(batch: list) -> dict:
     """
     Stacks individual sample dicts into batched tensors.
-    Since we already pad to max_len in __getitem__, this is just torch.stack.
     """
     return {
         "input_ids": torch.stack([x["input_ids"] for x in batch]),           # [B, max_len]
@@ -139,14 +136,12 @@ def collate_fn(batch: list) -> dict:
     }
 
 
-# main pipeline
-
 def build_dataloaders(
     batch_size: int = 32,
     max_len: int = MAX_LEN,
     val_split: float = 0.1,
     test_split: float = 0.1,
-    num_workers: int = 0,   # 0 = main process (safe on Windows)
+    num_workers: int = 0,   # for windows
     seed: int = 9,
     data_path: str = DATA_PATH
 ) -> tuple:
@@ -158,20 +153,14 @@ def build_dataloaders(
       4. Further split train into train/val for early stopping
       5. Return DataLoaders and tokenizer
 
-    Split strategy:
-        Rows are split into train/test BEFORE flattening answers,
-        preventing any question from appearing in both splits.
-        Val is carved out of train for early stopping monitoring.
-        Test is never touched during training or hyperparameter tuning.
-
     Returns:
         (train_loader, val_loader, test_loader, tokenizer)
     """
-    print("Loading HC3 dataset...")
+    print("Loading HC3 dataset")
     train_samples, test_samples = load_hc3(path=data_path, test_split=test_split, seed=seed)
 
-    print(f"  Train+val samples: {len(train_samples)}")
-    print(f"  Test samples     : {len(test_samples)}")
+    print(f"Train+val samples: {len(train_samples)}")
+    print(f"Test samples     : {len(test_samples)}")
 
     tokenizer = BertTokenizer.from_pretrained(TOKENIZER_NAME)
     full_train_ds = HC3Dataset(train_samples, tokenizer, max_len)
@@ -183,9 +172,9 @@ def build_dataloaders(
     generator = torch.Generator().manual_seed(seed)
     train_ds, val_ds = random_split(full_train_ds, [n_train, n_val], generator=generator)
 
-    print(f"  Train            : {len(train_ds)}")
-    print(f"  Val              : {len(val_ds)}")
-    print(f"  Test             : {len(test_ds)}")
+    print(f"Train : {len(train_ds)}")
+    print(f"Val   : {len(val_ds)}")
+    print(f"Test  : {len(test_ds)}")
 
     loader_kwargs = dict(
         batch_size=batch_size,
@@ -201,7 +190,6 @@ def build_dataloaders(
     return train_loader, val_loader, test_loader, tokenizer
 
 
-# quick sanity check
 if __name__ == "__main__":
     train_loader, val_loader, test_loader, tokenizer = build_dataloaders(
         batch_size=4,
@@ -210,9 +198,9 @@ if __name__ == "__main__":
 
     batch = next(iter(train_loader))
     print("\nBatch shapes:")
-    print(f"  input_ids      : {batch['input_ids'].shape}")
-    print(f"  attention_mask : {batch['attention_mask'].shape}")
-    print(f"  labels         : {batch['labels']}")
+    print(f"input_ids     : {batch['input_ids'].shape}")
+    print(f"attention_mask: {batch['attention_mask'].shape}")
+    print(f"labels        : {batch['labels']}")
 
     tokens = tokenizer.convert_ids_to_tokens(batch["input_ids"][0])
     print(f"\nFirst sample (first 20 tokens): {tokens[:20]}")

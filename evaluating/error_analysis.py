@@ -13,14 +13,11 @@ os.makedirs(ERROR_DIR, exist_ok=True)
 
 TOKENIZER_NAME = "bert-base-uncased"
 
-
 def collect_errors(model, test_loader, device: str) -> list:
     """
     Runs model on test set and collects all misclassified samples.
-
     Returns:
-        list of dicts with keys:
-            input_ids, attention_mask, true_label, pred_label, confidence
+        list of dicts with keys: input_ids, attention_mask, true_label, pred_label, confidence
     """
     model.eval()
     errors = []
@@ -46,7 +43,6 @@ def collect_errors(model, test_loader, device: str) -> list:
                         "pred_label": preds[i].item(),
                         "confidence": probs[i][preds[i]].item(),
                     })
-
     return errors
 
 
@@ -67,11 +63,9 @@ def decode_sample(input_ids: torch.Tensor, attention_mask: torch.Tensor, tokeniz
 
 def analyze(model, test_loader, device: str, model_name: str, n_show: int = 10) -> dict:
     """
-    Collects misclassified samples and produces a structured error report.
-
     Saves:
-        results/errors/{model_name}_errors.json  -- top n_show errors by confidence
-        results/errors/{model_name}_error_stats.json -- aggregate stats
+        results/errors/{model_name}_errors.json  - top n_show errors by confidence
+        results/errors/{model_name}_error_stats.json - aggregate stats
 
     Args:
         model: trained model
@@ -91,8 +85,8 @@ def analyze(model, test_loader, device: str, model_name: str, n_show: int = 10) 
     total_errors = len(errors)
 
     # count by error type
-    # false positive: true=human (0), pred=AI (1) -- model thinks human text is AI
-    # false negative: true=AI (1), pred=human (0) -- model misses AI text
+    # false positive: true=human (0), pred=AI (1) - model thinks human text is AI
+    # false negative: true=AI (1), pred=human (0) - model misses AI text
     false_positives = [e for e in errors if e["true_label"] == 0 and e["pred_label"] == 1]
     false_negatives = [e for e in errors if e["true_label"] == 1 and e["pred_label"] == 0]
 
@@ -113,15 +107,15 @@ def analyze(model, test_loader, device: str, model_name: str, n_show: int = 10) 
         ),
     }
 
-    print(f"  Total errors     : {total_errors} / {total_samples} ({stats['error_rate']*100:.1f}%)")
-    print(f"  False positives  : {len(false_positives)} (human classified as AI)")
-    print(f"  False negatives  : {len(false_negatives)} (AI classified as human)")
-    print(f"  Mean confidence on errors: {stats['mean_confidence_on_errors']:.4f}")
+    print(f"Total errors: {total_errors} / {total_samples} ({stats['error_rate']*100:.1f}%)")
+    print(f"False positives: {len(false_positives)} (human classified as AI)")
+    print(f"False negatives: {len(false_negatives)} (AI classified as human)")
+    print(f"Mean confidence on errors: {stats['mean_confidence_on_errors']:.4f}")
 
-    # sort errors by confidence descending — most confident wrong predictions are most interesting
+    # sort errors by confidence descending
     errors_sorted = sorted(errors, key=lambda x: x["confidence"], reverse=True)
 
-    # decode top n_show errors for the report
+    # decode top n_show errors
     error_records = []
     for e in errors_sorted[:n_show]:
         text = decode_sample(e["input_ids"], e["attention_mask"], tokenizer)

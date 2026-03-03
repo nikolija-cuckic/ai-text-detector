@@ -20,17 +20,15 @@ torch.set_num_interop_threads(4)
 RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-
 def save_history(history: dict, model_name: str) -> None:
-    """Saves training history to results/{model_name}_history.json for later evaluation."""
+    """Saves training history to results/{model_name}_history.json for evaluation."""
     path = os.path.join(RESULTS_DIR, f"{model_name}_history.json")
     with open(path, "w") as f:
         json.dump(history, f, indent=2)
-    print(f"  History saved -> {path}")
-
+    print(f"History saved {path}")
 
 def train_lstm(data_cfg, lstm_cfg, train_loader, val_loader) -> dict:
-    model = LSTMClassifier(config=lstm_cfg)  # samo config, bez kwargs
+    model = LSTMClassifier(config=lstm_cfg)  
     model_name = f"lstm_maxlen{data_cfg.max_len}"
     trainer = Trainer(
         model=model,
@@ -43,9 +41,8 @@ def train_lstm(data_cfg, lstm_cfg, train_loader, val_loader) -> dict:
     save_history(history, model_name)
     return history
 
-
 def train_transformer(data_cfg, trans_cfg, train_loader, val_loader) -> dict:
-    model = TransformerClassifier(config=trans_cfg)  # samo config
+    model = TransformerClassifier(config=trans_cfg)  
     model_name = f"transformer_maxlen{data_cfg.max_len}"
     trainer = Trainer(
         model=model,
@@ -57,7 +54,6 @@ def train_transformer(data_cfg, trans_cfg, train_loader, val_loader) -> dict:
     history = trainer.train()
     save_history(history, model_name)
     return history
-
 
 def train_bert(data_cfg, bert_cfg, train_loader, val_loader, frozen: bool = False) -> dict:
     model = BERTClassifier(config=bert_cfg)
@@ -76,19 +72,9 @@ def train_bert(data_cfg, bert_cfg, train_loader, val_loader, frozen: bool = Fals
     save_history(history, model_name)
     return history
 
-
-
 def parse_args() -> argparse.Namespace:
-    """
-    CLI overrides for configs defined in main().
-
-    Example usage:
-        python train.py --models lstm transformer
-        python train.py --models bert --max_epochs 3 --batch_size 16
-        python train.py --models lstm --lr 5e-4 --patience 5 --max_len 128
-    """
+    """CLI overrides for configs defined in main()."""
     parser = argparse.ArgumentParser(description="Train AI text detection models")
-
     parser.add_argument(
         "--models",
         nargs="+",
@@ -96,30 +82,24 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Which models to train. Defaults to those enabled in main().",
     )
-
     # data overrides
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--max_len", type=int, default=None)
-
     # training overrides (applied to all selected models)
     parser.add_argument("--max_epochs", type=int, default=None)
     parser.add_argument("--patience", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
-
     return parser.parse_args()
 
 
 def apply_overrides(args: argparse.Namespace, data_cfg, lstm_cfg, trans_cfg, bert_cfg) -> None:
-    """Applies CLI overrides to all relevant config objects in-place."""
+    """Applies CLI overrides to all relevant config"""
     training_cfgs = [lstm_cfg, trans_cfg, bert_cfg]
-
     if args.batch_size is not None:
         data_cfg.batch_size = args.batch_size
-
     if args.max_len is not None:
         data_cfg.max_len = args.max_len
         trans_cfg.max_len = args.max_len  # TransformerClassifier needs max_len too
-
     for cfg in training_cfgs:
         if args.max_epochs is not None:
             cfg.max_epochs = args.max_epochs
@@ -128,11 +108,10 @@ def apply_overrides(args: argparse.Namespace, data_cfg, lstm_cfg, trans_cfg, ber
         if args.lr is not None:
             cfg.lr = args.lr
 
-
 def main() -> None:
     args = parse_args()
 
-    # base configs — edit these to change defaults without CLI
+    # base configs - edit to change defaults without CLI
     data_cfg = DataConfig()
     lstm_cfg = LSTMConfig()
     trans_cfg = TransformerConfig()
@@ -140,11 +119,10 @@ def main() -> None:
 
     apply_overrides(args, data_cfg, lstm_cfg, trans_cfg, bert_cfg)
 
-    # which models to train — CLI overrides this list if --models is passed
-    # to train only specific models, edit this list or use --models from CLI
+    # which models to train
     models_to_train = args.models if args.models is not None else [ "transformer"] #"lstm", , "bert"
 
-    # build dataloaders once — all models share the same data pipeline
+    # build dataloaders once
     train_loader, val_loader, test_loader, _ = build_dataloaders(
         batch_size=data_cfg.batch_size,
         max_len=data_cfg.max_len,
@@ -154,7 +132,6 @@ def main() -> None:
         seed=data_cfg.seed,
         data_path=data_cfg.data_path,
     )
-
     # save test_loader for evaluate.py
     test_loader_path = os.path.join(RESULTS_DIR, "test_loader.pt")
     torch.save(test_loader, test_loader_path)
@@ -170,8 +147,7 @@ def main() -> None:
         train_bert(data_cfg, bert_cfg, train_loader, val_loader, frozen=True)
         train_bert(data_cfg, bert_cfg, train_loader, val_loader, frozen=False)
 
-    print("\nAll done. Run evaluate.py to see test results.")
-
-
+    print("\ndone.")
+    
 if __name__ == "__main__":
     main()

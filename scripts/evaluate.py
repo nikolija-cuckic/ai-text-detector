@@ -26,7 +26,6 @@ MODEL_MAP = {
     "bert_full_maxlen256": (BERTClassifier, BERTConfig),
 }
 
-
 def load_model(model_name: str, device: str) -> torch.nn.Module:
     """Loads model class and weights from best checkpoint."""
     ckpt_path = os.path.join(CKPT_DIR, model_name, "best.pt")
@@ -42,7 +41,7 @@ def load_model(model_name: str, device: str) -> torch.nn.Module:
     model.to(device)
     model.eval()
 
-    print(f"  Loaded {model_name} from epoch {ckpt['epoch']} (val_loss={ckpt['val_loss']:.4f})")
+    print(f"Loaded {model_name} from epoch {ckpt['epoch']} (val_loss={ckpt['val_loss']:.4f})")
     return model
 
 
@@ -51,7 +50,7 @@ def evaluate_model(model_name: str, model, test_loader, device: str) -> dict:
     evaluator = Evaluator(model, device)
     metrics = evaluator.evaluate(test_loader)
 
-    # confusion matrix is a tensor/list — convert to list for JSON
+    # confusion matrix is a tensor/list- convert to list for JSON
     cm = metrics["confusion_matrix"]
     if hasattr(cm, "tolist"):
         metrics["confusion_matrix"] = cm.tolist()
@@ -60,12 +59,11 @@ def evaluate_model(model_name: str, model, test_loader, device: str) -> dict:
     with open(out_path, "w") as f:
         json.dump(metrics, f, indent=2)
 
-    print(f"  Metrics saved -> {out_path}")
+    print(f"Metrics saved {out_path}")
     return metrics
 
 
 def print_metrics(model_name: str, metrics: dict) -> None:
-    """Pretty-prints evaluation metrics for one model."""
     print(f"\n{'='*45}")
     print(f"  {model_name.upper()}")
     print(f"{'='*45}")
@@ -101,17 +99,15 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def get_max_len_from_name(model_name: str) -> int:
-    """Extracts max_len from model name, e.g. transformer_maxlen128 -> 128."""
     if "maxlen128" in model_name:
         return 128
     if "maxlen256" in model_name:
         return 256
-    return 256  # default
+    return 256
 
 def main() -> None:
     args = parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
     # auto-detect which models to evaluate
     if args.models is not None:
         models_to_eval = args.models
@@ -143,20 +139,19 @@ def main() -> None:
 
         test_loader = loader_cache[test_loader_path]
 
-        print(f"\nEvaluating {model_name}...")
+        print(f"\nEvaluating {model_name}")
         try:
             model = load_model(model_name, device)
             metrics = evaluate_model(model_name, model, test_loader, device)
             print_metrics(model_name, metrics)
             all_metrics[model_name] = metrics
         except FileNotFoundError as e:
-            print(f"  Skipping {model_name}: {e}")
+            print(f"Skipping {model_name}: {e}")
 
     summary_path = os.path.join(RESULTS_DIR, "summary.json")
     with open(summary_path, "w") as f:
         json.dump(all_metrics, f, indent=2)
     print(f"\nSummary saved -> {summary_path}")
-
 
 if __name__ == "__main__":
     main()

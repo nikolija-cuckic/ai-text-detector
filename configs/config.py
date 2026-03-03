@@ -5,11 +5,11 @@ from dataclasses import dataclass, field
 @dataclass
 class DataConfig:
     data_path: str = "data/hc3_all.jsonl"
-    max_len: int = 256          # use 512 for final training
+    max_len: int = 256          
     batch_size: int = 32
     val_split: float = 0.1
     test_split: float = 0.1
-    num_workers: int = 0        # 0 = safe on Windows, 2-4 on Linux/Colab
+    num_workers: int = 0        # 0 on Windows, 2-4 on Linux/Colab
     seed: int = 9
 
 
@@ -70,10 +70,10 @@ class BERTConfig:
     # head
     dropout: float = 0.1
 
-    # training — lower lr than scratch models, BERT weights are pretrained
+    # lower lr than scratch models, BERT weights are pretrained
     lr: float = 2e-5
     weight_decay: float = 0.01
-    max_epochs: int = 5         # BERT fine-tuning needs fewer epochs
+    max_epochs: int = 5         # BERT fine-tuning should need fewer epochs
     patience: int = 2
     seed: int = 9
 

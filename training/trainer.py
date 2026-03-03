@@ -1,8 +1,3 @@
-"""
-Works with all three models (LSTMClassifier, TransformerClassifier, BERTClassifier)
-since they all share the same forward interface: (input_ids, attention_mask) -> (logits, _).
-"""
-
 import sys
 sys.path.append(".")
 
@@ -14,24 +9,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from typing import Any
 
-
-
 class Trainer:
-    """
-    Trains a binary classifier for a fixed number of epochs with early stopping.
-
-    Saves the best checkpoint (lowest val loss) to checkpoints/{model_name}/best.pt.
-    Stops early if val loss does not improve for `patience` consecutive epochs.
-    """
-
-    def __init__(
-        self,
-        model: nn.Module,
-        config: Any,
-        train_loader: DataLoader,
-        val_loader: DataLoader,
-        model_name: str
-    ) -> None:
+    """Trains a binary classifier for a fixed number of epochs with early stopping.
+    Saves the best checkpoint (highest val acc) to checkpoints/{model_name}/best.pt."""
+    def __init__(self, model: nn.Module, config: Any, train_loader: DataLoader, val_loader: DataLoader, model_name: str) -> None:
         self.model = model
         self.config = config
         self.train_loader = train_loader
@@ -49,13 +30,13 @@ class Trainer:
             weight_decay=config.weight_decay
         )
 
-        # cosine LR schedule — decays lr from config.lr to 0 over max_epochs
+        # cosine LR schedule decays lr from config.lr to 0 over max_epochs
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             self.optimizer,
             T_max=config.max_epochs
         )
 
-        # gradient clipping — prevents exploding gradients, especially in LSTM
+        # gradient clipping prevents exploding gradients
         self.grad_clip = 1.0
         self.best_val_loss = float("inf")
         # early stopping state
@@ -142,13 +123,8 @@ class Trainer:
         path_last = os.path.join(self.ckpt_dir, "last.pt")
         torch.save(ckpt, path_last)
 
-
-
     def resume_from_checkpoint(self) -> int:
-        """
-        Loads last.pt if it exists and returns the next epoch to start from.
-        Returns 1 if no checkpoint found (fresh start).
-        """
+        """Loads last.pt if it exists and returns the next epoch to start from."""
         path_last = os.path.join(self.ckpt_dir, "last.pt")
         if not os.path.exists(path_last):
             return 1
@@ -161,13 +137,12 @@ class Trainer:
         self.best_val_acc = ckpt.get("best_val_acc", 0.0)
         self.epochs_without_improvement = ckpt["epochs_without_improvement"]
         start_epoch = ckpt["epoch"] + 1
-
-        print(f"  Resumed from epoch {ckpt['epoch']} (val_loss={ckpt['val_loss']:.4f}, no_improve={self.epochs_without_improvement})")
+        print(f"Resumed from epoch {ckpt['epoch']} (val_loss={ckpt['val_loss']:.4f}, no_improve={self.epochs_without_improvement})")
         return start_epoch
 
 
     def load_best_checkpoint(self) -> None:
-        """Loads the best saved checkpoint back into the model."""
+        """Loads the best saved checkpoint"""
         path = os.path.join(self.ckpt_dir, "best.pt")
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(ckpt["model_state"])
@@ -175,12 +150,9 @@ class Trainer:
 
     def train(self) -> dict:
         """
-        Main training loop.
-
         Runs for at most config.max_epochs epochs.
         Stops early if val loss does not improve for config.patience epochs.
         Loads best checkpoint at the end.
-
         Returns:
             history dict with lists of train_loss, val_loss, train_acc, val_acc per epoch
         """
@@ -230,7 +202,6 @@ class Trainer:
                     print(f"Early stopping at epoch {epoch}.")
                     break
         
-
         results_dir = os.path.join("results")
         os.makedirs(results_dir, exist_ok=True)
         with open(os.path.join(results_dir, f"{self.model_name}_history.json"), "w") as f:

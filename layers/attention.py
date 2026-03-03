@@ -1,13 +1,3 @@
-"""
-Bidirectional multi-head self-attention for text classification.
-
-NO causal mask — every token sees all others in both directions. 
-Only mask applied is the padding mask, which prevents attention to [PAD] tokens.
-
-separate q_proj, k_proj, v_proj (MultiHeadAttention style),
-and return attention weights they can be visualize later.
-"""
-
 import math
 import torch
 import torch.nn as nn
@@ -18,8 +8,7 @@ from typing import Optional
 class BidirectionalMultiHeadAttention(nn.Module):
     """
     Multi-head self-attention without causal mask (bidirectional).
-    [PAD] tokens are masked out via the padding mask from the dataloader.
-
+    [PAD] tokens are masked out by padding mask from dataloader.
     Returns both output and attention weights (needed for visualization).
     """
 
@@ -41,19 +30,15 @@ class BidirectionalMultiHeadAttention(nn.Module):
         self.attn_dropout: nn.Dropout = nn.Dropout(config.dropout)
         self.resid_dropout: nn.Dropout = nn.Dropout(config.dropout)
 
-    def forward(
-        self,
-        x: torch.Tensor,
-        padding_mask: Optional[torch.Tensor] = None
-    ) -> tuple:
+    def forward( self, x: torch.Tensor, padding_mask: Optional[torch.Tensor] = None) -> tuple:
         """
         Args:
-            x:            [B, seq_len, d_model] — input from embedding or previous block
-            padding_mask: [B, seq_len] — 1 for real tokens, 0 for [PAD] (from dataloader)
+            x:            [B, seq_len, d_model] - input from embedding or previous block
+            padding_mask: [B, seq_len] - 1 for real tokens, 0 for [PAD] (from dataloader)
 
         Returns:
-            out:          [B, seq_len, d_model] — attended representations
-            attn_weights: [B, n_heads, seq_len, seq_len] — attention distributions (for viz)
+            out:          [B, seq_len, d_model] - attended representations
+            attn_weights: [B, n_heads, seq_len, seq_len] - attention distributions
         """
         B: int
         T: int
@@ -75,17 +60,17 @@ class BidirectionalMultiHeadAttention(nn.Module):
         scores: torch.Tensor = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
 
         # apply padding mask - mask out [PAD] positions so they get zero attention weight
-        # padding_mask is [B, T]: expand to [B, 1, 1, T] for broadcasting over heads and queries
+        # padding_mask is [B, T]: expand to [B, 1, 1, T] for broadcasting
         if padding_mask is not None:
             scores = scores.masked_fill(
                 padding_mask.unsqueeze(1).unsqueeze(2) == 0,
                 float("-inf")
             )
 
-        # softmax over last dim (key dimension) — each query gets a distribution over keys
+        # softmax over last dim (key dimension) 
         attn_weights: torch.Tensor = F.softmax(scores, dim=-1)  # [B, n_heads, T, T]
 
-        # if a row is all -inf (full padding), softmax gives NaN — replace with 0
+        # if a row is all -inf (full padding), softmax gives NaN - replace with 0
         attn_weights = torch.nan_to_num(attn_weights, nan=0.0)
 
         attn_weights = self.attn_dropout(attn_weights)
@@ -100,43 +85,3 @@ class BidirectionalMultiHeadAttention(nn.Module):
         out = self.resid_dropout(self.out_proj(out))
 
         return out, attn_weights
-
-
-# quick sanity check
-
-if __name__ == "__main__":
-    import sys
-    sys.path.append(".")
-    from dataclasses import dataclass
-
-    @dataclass
-    class Config:
-        d_model: int = 128
-        n_heads: int = 8
-        dropout: float = 0.1
-        bias: bool = False
-
-    torch.manual_seed(9)
-
-    config = Config()
-    attn = BidirectionalMultiHeadAttention(config)
-
-    B, T = 2, 32
-    x = torch.randn(B, T, config.d_model)
-
-    # simulate padding mask: last 5 tokens are [PAD]
-    padding_mask = torch.ones(B, T, dtype=torch.long)
-    padding_mask[:, -5:] = 0
-
-    out, weights = attn(x, padding_mask)
-    print(f"Input  shape: {x.shape}")           # [2, 32, 128]
-    print(f"Output shape: {out.shape}")          # [2, 32, 128]
-    print(f"Attn weights: {weights.shape}")      # [2, 8, 32, 32]
-
-    # verify padding positions have zero attention weight
-    pad_attn = weights[:, :, :, -5:]
-    print(f"Attention on PAD tokens (should be 0): {pad_attn.abs().max().item():.6f}")
-
-    assert out.shape == (B, T, config.d_model)
-    assert weights.shape == (B, config.n_heads, T, T)
-    print("OK")
