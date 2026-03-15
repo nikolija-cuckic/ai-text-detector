@@ -38,6 +38,5 @@ Thumbs.db
 # env varijable
 .env
 
-README.md
 *.png
 *.json
